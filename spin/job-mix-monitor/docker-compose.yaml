@@ -1,0 +1,64 @@
+# version 3 is not available yet in spin (2019)
+version: "2"
+services:
+  app:
+    image: $SPIN_REPO/job-mix-monitor-app:v1.0
+    volumes: 
+    - $SPIN_VOL/job-mix-monitor:/app/log
+    - $SPIN_DIR/app/run.sh:/app/run.sh
+    restart: always
+    user: "$SPIN_USER:$SPIN_USER"
+    cap_drop:
+    - ALL
+    retain_ip: true
+    labels:
+      io.rancher.container.pull_image: always
+
+  util:
+    image: $SPIN_REPO/job-mix-parser-util:v1.1.1
+    volumes:
+    - $SPIN_VOL/util:/app/log
+    - $SPIN_DIR/util/run.sh:/app/run.sh
+    # secret should be created in spin with rancher secret create db.mihaip-job-mix-monitor.influxdb-properties db.properties
+    # file db.properties should exist in current SPIN_DIRectory
+    secrets:
+    - mode: '0444'
+      uid: '0'
+      gid: '0'
+      source: db.mihaip-job-mix-monitor.influxdb-properties
+      target: db.properties
+    user: "$SPIN_USER:$SPIN_USER"
+    restart: always
+    cap_drop:
+    - ALL
+    retain_ip: true
+    labels:
+      io.rancher.container.pull_image: always
+
+  web:
+    image: $SPIN_REPO/grafana-web
+    restart: always
+    volumes: 
+    - $SPIN_VOL/grafana:/var/lib/grafana:rw
+    - ./grafana.ini:/etc/grafana/grafana.ini
+    user: "$SPIN_USER:$SPIN_USER"
+    ports:
+    - "60017:3000"
+    cap_drop:
+    - ALL
+    retain_ip: true
+    labels:
+      io.rancher.container.pull_image: always
+
+  db:
+    image: $SPIN_REPO/influxdb-db
+    volumes:
+    - $SPIN_VOL/influxdb:/var/lib/influxdb
+    - $SPIN_VOL/influxdb/.influx_history:/.influx_history
+    restart: always
+    user: "$SPIN_USER:$SPIN_USER"
+    cap_drop:
+    - ALL
+    retain_ip: true
+    labels:
+      io.rancher.container.pull_image: always

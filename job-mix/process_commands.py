@@ -3,26 +3,31 @@
 """
 Set of routines that are used to run and kill a shell command as needed
 """
-import math, os, pprint, re, shlex, shutil, socket, stat, time
-from datetime import datetime
+import os, pprint, shlex, time
+import sys
 from signal import alarm, signal, SIGALRM, SIGKILL, SIGTERM
 from subprocess import Popen, PIPE, STDOUT
 import smtplib
 from email.mime.text import MIMEText
 import getpass
+from datetime import datetime
+
 
 class commException(Exception):
     def __init__(self, command, status, output):
         self.command = command
         self.status = status
         self.output = output
+
     def __str__(self):
         return "Command failed: '%s' with status '%s'" % (self.command,
                                                           self.status)
 
+
 class process_commands:
     """ class to support process management """
-    def __init__(self,verbosity):
+
+    def __init__(self, verbosity):
         self.verbosity = verbosity
         self._logIndent = 0
         self.dry_run = False
@@ -32,13 +37,15 @@ class process_commands:
         if self.verbosity < verbosity:
             return
         indent = " " * (verbosity + self._logIndent)
+
+        now = datetime.now()
+        indent = indent + now.strftime("%B %d, %Y %H:%M:%S") + " "
         if isinstance(msg, str):
-            print indent + msg
+            print(indent + msg)
         elif isinstance(msg, commException):
-            print indent + str(msg)
+            print(indent + str(msg))
         else:
             pprint.pprint(msg, depth=6)
-
 
     def _get_process_progeny(self, pid):
 
@@ -46,7 +53,7 @@ class process_commands:
         child processes spawned (and children of children, etc.) of a
         given pid.  Note: this will miss orphaned children, perhaps
         there is a way to use session ids to track them... """
-        
+
         pscmd = "ps -o pid,ppid "
         if sys.platform.lower().startswith("linux"):
             pscmd += "x"  # Linux is so "special"
@@ -68,7 +75,6 @@ class process_commands:
                     found = True
             xdone = not found
         return progeny
-
 
     def _kill_progeny(self, proc):
 
@@ -99,7 +105,7 @@ class process_commands:
         # informative
         output = proc.communicate()[0]
         status = proc.wait()
-        return status, output        
+        return status, output
 
     def comm(self, cmd, shell=False, timeout=0, ignore_dry_run=False):
 
@@ -139,7 +145,7 @@ class process_commands:
             output = proc.communicate()[0]
             status = proc.wait()
             if timeout > 0:
-                alarm(0) # clear alarm
+                alarm(0)  # clear alarm
         except OSError:
             self.log("Error running: %s" % cmd, 0)
             raise
@@ -150,21 +156,21 @@ class process_commands:
         # Clean up, if timeout exceeded.
         if proc_tobe_killed is not None:
             status, output = self._kill_progeny(proc_tobe_killed)
-        
+
         elapsed = time.time() - t0
         self.log("status: %d" % (status), 3)
         self.log("output: %s" % output, 3)
         return (status, output, elapsed)
 
-    def sendmail(self,subject,msg,dest):
+    def sendmail(self, subject, msg, dest):
 
-        me = "@".join([getpass.getuser(),"nersc.gov"])
+        me = "@".join([getpass.getuser(), "nersc.gov"])
         emsg = MIMEText(msg)
         emsg['Subject'] = subject
         emsg['From'] = me
         emsg['To'] = dest
-        s=smtplib.SMTP('localhost')
-        s.sendmail(me,dest,emsg.as_string())
+        s = smtplib.SMTP('localhost')
+        s.sendmail(me, dest, emsg.as_string())
         s.quit()
 
 

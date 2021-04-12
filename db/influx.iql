@@ -1,0 +1,6 @@
+CREATE USER admin WITH PASSWORD '1234' WITH ALL PRIVILEGES
+CREATE USER jobmix WITH PASSWORD '1234'
+CREATE DATABASE jobmix
+GRANT ALL ON jobmix TO jobmix
+show databases
+show users

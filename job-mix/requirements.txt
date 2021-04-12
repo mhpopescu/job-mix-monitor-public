@@ -1,0 +1,2 @@
+Flask==1.1.1
+influxdb==5.2.3

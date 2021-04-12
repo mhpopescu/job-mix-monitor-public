@@ -1,0 +1,62 @@
+version: "3.1"
+services:
+  app:
+    container_name: job-mix-monitor-app
+    build: ./job-mix-monitor
+    # Paths for volumes must be absolute
+    volumes: 
+      - $VOLUMES_DIR/job-mix-monitor:/app/log
+      - ./job-mix-monitor/run.sh:/app/run.sh
+    restart: always
+    entrypoint:
+      - /app/run.sh
+
+  util:
+    container_name: job-mix-parser-util
+    build: ./job-mix
+    volumes:
+      - $VOLUMES_DIR/util:/app/log
+      - ./job-mix/run.sh:/app/run.sh
+      - ./job-mix/db.properties:/app/db.properties
+    entrypoint:
+      - /app/run.sh
+    restart: always
+    # this says just that db container should be run first, but it might take a while until database is up
+    # it is okay altough, because container is restarted on error; 
+    # the application could ping db for connection, but it seems simpler just to restart
+    depends_on:
+    - db
+    # expose this for testing outside container
+    # ports:
+      # - "5000:5000"
+
+  web:
+    image: grafana/grafana
+    container_name: grafana-web
+    restart: always
+    depends_on:
+      - db
+    volumes: 
+      - $VOLUMES_DIR/grafana:/var/lib/grafana:rw
+      - ./grafana.ini:/etc/grafana/grafana.ini
+    ports:
+      - "3000:3000"
+    # This is needed by grafana 
+    # The user has to be the one who owns 
+    # $SPIN_DIR/volumes/grafana directory on the host machine
+    user: $D_UID
+
+  db:
+    image: influxdb:latest
+    container_name: influxdb-db
+    # expose this for testing  outside container
+    # connection inside docker should be to 8086 as docker makes its own network
+    ports:
+      - 8086:8086
+    volumes:
+      - $VOLUMES_DIR/influxdb:/var/lib/influxdb
+    restart:
+      always
+    # user: $D_UID:$D_UID
+    # cap_drop:
+    # - ALL
